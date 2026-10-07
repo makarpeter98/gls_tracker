@@ -17,6 +17,7 @@ def test_tracker_state_changes_and_delivery() -> None:
         randomize=False,
         sound_enabled=False,
         persist_state=False,
+        persist_history=False,
     )
 
     initial_state = ShipmentState(
