@@ -1,4 +1,4 @@
-#tests/test_gls_errors.py
+﻿#tests/test_gls_errors.py
 
 from unittest.mock import patch
 
@@ -9,8 +9,8 @@ from src.gls_client import GLSClient
 
 def test_request_error() -> None:
     client = GLSClient(
-        tracking_number="3422719707",
-        postal_code="4028",
+        tracking_number="1234567890",
+        postal_code="1234",
     )
 
     with patch(
@@ -36,8 +36,8 @@ def test_request_error() -> None:
 
 def test_invalid_json() -> None:
     client = GLSClient(
-        tracking_number="3422719707",
-        postal_code="4028",
+        tracking_number="1234567890",
+        postal_code="1234",
     )
 
     class FakeResponse:
@@ -67,8 +67,8 @@ def test_invalid_json() -> None:
 
 def test_unexpected_format() -> None:
     client = GLSClient(
-        tracking_number="3422719707",
-        postal_code="4028",
+        tracking_number="1234567890",
+        postal_code="1234",
     )
 
     class FakeResponse:

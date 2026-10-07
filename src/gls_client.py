@@ -13,7 +13,11 @@ class GLSClient:
         "rstt028/{tracking_number}"
     )
 
-    def __init__(self, tracking_number: str, postal_code: str):
+    def __init__(
+        self,
+        tracking_number: str,
+        postal_code: str,
+    ):
         self.tracking_number = tracking_number
         self.postal_code = postal_code
 
@@ -54,24 +58,51 @@ class GLSClient:
         try:
             return self._parse_response(data)
 
-        except (KeyError, IndexError, TypeError, AttributeError) as exc:
+        except (
+            KeyError,
+            IndexError,
+            TypeError,
+            AttributeError,
+        ) as exc:
             raise RuntimeError(
                 "GLS API response has an unexpected format."
             ) from exc
 
     @staticmethod
-    def _parse_response(data: dict) -> ShipmentState:
-        arrival_time = data.get("arrivalTime", {})
-        progress_bar = data.get("progressBar", {})
-        history = data.get("history", [])
+    def _parse_response(
+        data: dict,
+    ) -> ShipmentState:
+        arrival_time = data.get(
+            "arrivalTime",
+            {},
+        )
+
+        progress_bar = data.get(
+            "progressBar",
+            {},
+        )
+
+        history = data.get(
+            "history",
+            [],
+        )
 
         return ShipmentState(
-            status=progress_bar.get("statusInfo", ""),
-            status_text=progress_bar.get("statusText", ""),
-            arrival_time=arrival_time.get("value"),
+            status=progress_bar.get(
+                "statusInfo",
+                "",
+            ),
+            status_text=progress_bar.get(
+                "statusText",
+                "",
+            ),
+            arrival_time=arrival_time.get(
+                "value",
+            ),
             last_event_time=(
                 history[0].get("date")
                 if history
                 else None
             ),
         )
+  

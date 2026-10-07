@@ -1,66 +1,55 @@
-#tests/test_tracker.py
+﻿#tests/test_tracker.py
 
 from src.models import ShipmentState
 from src.tracker import Tracker
 
 
 class FakeClient:
-    tracking_number = "3422719707"
-    postal_code = "4028"
+    tracking_number = "1234567890"
+    postal_code = "1234"
 
 
-def main() -> None:
+def test_tracker_state_changes_and_delivery() -> None:
     tracker = Tracker(
         client=FakeClient(),
         min_polling=1,
         max_polling=1,
         randomize=False,
+        sound_enabled=False,
         persist_state=False,
     )
 
-    states = [
-        ShipmentState(
-            status="INDELIVERY",
-            status_text="GLS járműben, kiszállítás alatt",
-            arrival_time="16:00-19:00",
-            last_event_time="2026-10-07",
-        ),
-        ShipmentState(
-            status="INDELIVERY",
-            status_text="GLS járműben, kiszállítás alatt",
-            arrival_time="17:00-20:00",
-            last_event_time="2026-10-07",
-        ),
-        ShipmentState(
-            status="DELIVERED",
-            status_text="Kézbesítve",
-            arrival_time=None,
-            last_event_time="2026-10-07",
-        ),
-    ]
+    initial_state = ShipmentState(
+        status="INDELIVERY",
+        status_text="GLS vehicle, out for delivery",
+        arrival_time="16:00-19:00",
+        last_event_time="2026-10-07",
+    )
 
-    print("=" * 60)
-    print("TRACKER FULL TEST")
-    print("=" * 60)
-    print()
+    changed_state = ShipmentState(
+        status="INDELIVERY",
+        status_text="GLS vehicle, out for delivery",
+        arrival_time="17:00-20:00",
+        last_event_time="2026-10-07",
+    )
 
-    for index, state in enumerate(states, start=1):
-        print(f"--- Test state {index} ---")
-        print()
+    delivered_state = ShipmentState(
+        status="DELIVERED",
+        status_text="Delivered",
+        arrival_time=None,
+        last_event_time="2026-10-07",
+    )
 
-        should_stop = tracker._process_state(state)
+    assert tracker._process_state(initial_state) is False
 
-        print()
+    changes = tracker._detect_changes(
+        initial_state,
+        changed_state,
+    )
 
-        if should_stop:
-            print("Tracker requested shutdown.")
-            break
+    assert len(changes) == 1
+    assert "Expected delivery:" in changes[0]
 
-    print()
-    print("=" * 60)
-    print("TEST FINISHED")
-    print("=" * 60)
+    assert tracker._process_state(changed_state) is False
 
-
-if __name__ == "__main__":
-    main()
+    assert tracker._process_state(delivered_state) is True

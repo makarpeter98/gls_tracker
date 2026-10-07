@@ -9,6 +9,7 @@ from .config import (
     save_config,
 )
 from .gls_client import GLSClient
+from .live_tracking_client import LiveTrackingClient
 from .tracker import Tracker
 
 
@@ -31,8 +32,8 @@ def main() -> None:
 
     save_config(config)
 
-    min_polling, max_polling, randomize = get_polling_settings(
-        config
+    min_polling, max_polling, randomize = (
+        get_polling_settings(config)
     )
 
     sound_enabled = get_sound_enabled(config)
@@ -42,8 +43,14 @@ def main() -> None:
         postal_code=postal_code,
     )
 
+    live_client = LiveTrackingClient(
+        tracking_number=tracking_number,
+        postal_code=postal_code,
+    )
+
     tracker = Tracker(
         client=client,
+        live_client=live_client,
         min_polling=min_polling,
         max_polling=max_polling,
         randomize=randomize,

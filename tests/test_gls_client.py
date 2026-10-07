@@ -1,22 +1,46 @@
-#tests/test_gls_client.py
+﻿#tests/test_gls_client.py
+
+from unittest.mock import Mock, patch
 
 from src.gls_client import GLSClient
 
 
-def main() -> None:
+def test_get_shipment() -> None:
+    response_data = {
+        "arrivalTime": {
+            "value": "16:00-19:00",
+        },
+        "progressBar": {
+            "statusInfo": "INDELIVERY",
+            "statusText": "GLS vehicle, out for delivery",
+        },
+        "history": [
+            {
+                "date": "2026-10-07",
+            }
+        ],
+    }
+
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = response_data
+
     client = GLSClient(
-        tracking_number="3422719707",
-        postal_code="4028",
+        tracking_number="1234567890",
+        postal_code="1234",
     )
 
-    shipment = client.get_shipment()
+    with patch(
+        "src.gls_client.requests.get",
+        return_value=response,
+    ) as mock_get:
+        shipment = client.get_shipment()
 
-    print("Tracking number:", client.tracking_number)
-    print("Status:", shipment.status)
-    print("Status text:", shipment.status_text)
-    print("Arrival time:", shipment.arrival_time)
-    print("Last event:", shipment.last_event_time)
+    mock_get.assert_called_once()
 
-
-if __name__ == "__main__":
-    main()
+    assert shipment.status == "INDELIVERY"
+    assert shipment.status_text == (
+        "GLS vehicle, out for delivery"
+    )
+    assert shipment.arrival_time == "16:00-19:00"
+    assert shipment.last_event_time == "2026-10-07"

@@ -117,8 +117,8 @@ text
 GLS PACKAGE TRACKER
 ============================================================
 
-Tracking number:  3422719707
-Postal code:      4028
+Tracking number:  1234567890
+Postal code:      1234
 Polling interval: 60-120 seconds (random)
 Sound:            enabled
 
