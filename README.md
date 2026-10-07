@@ -1,29 +1,30 @@
 # GLS Package Tracker
 
-A lightweight Python application for monitoring GLS parcel deliveries.
+A lightweight Python application for monitoring GLS parcel deliveries in real time.
 
-The application periodically checks the GLS tracking API and detects changes in:
+The tracker periodically checks the GLS tracking API and the GLS live tracking API, detects changes, and reports them in the console. Optional Windows sound notifications can be enabled.
 
-* shipment status
-* expected delivery time
-
-When a change is detected, the tracker displays a notification in the console and can optionally play a sound.
-
-The tracker automatically stops when the shipment is marked as delivered.
+The application automatically stops monitoring when the shipment is delivered.
 
 ## Features
 
-* GLS tracking API integration
-* Configurable tracking number and postal code
-* Configurable polling interval
-* Optional randomized polling interval
-* Shipment status change detection
-* Expected delivery time change detection
+* GLS shipment tracking API integration
+* GLS live tracking integration
+* Shipment status monitoring
+* Expected delivery window monitoring
+* Live ETA monitoring
+* Live ETA window monitoring
+* Remaining delivery stops
+* Courier position when provided by GLS
+* Detection of multiple changes in a single polling cycle
 * Persistent state between application runs
+* Detection of changes that happened while the application was not running
 * Console notifications
 * Optional Windows notification sound
+* Configurable polling interval
+* Optional randomized polling interval
 * Automatic shutdown after delivery
-* Error handling for API/network failures
+* Error handling for API and network failures
 * No external database required
 
 ## Requirements
@@ -32,9 +33,9 @@ The tracker automatically stops when the shipment is marked as delivered.
 * Python 3.11 or newer
 * Internet connection
 * A valid GLS tracking number
-* GLS postal code associated with the shipment
+* The postal code associated with the shipment
 
-The application uses Windows `winsound` for notification sounds, so the current version is Windows-specific.
+The current version uses Windows `winsound` for notification sounds and is therefore Windows-specific.
 
 ## Installation
 
@@ -57,17 +58,23 @@ powershell
 .\gls_tracker_venv\Scripts\Activate.ps1
 
 
-Install the required dependency:
+Install the application dependencies:
 
 powershell
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+
+
+For development and testing, install pytest if it is not already available:
+
+powershell
+python -m pip install pytest
 
 
 ## Configuration
 
 On the first start, the application creates `config.json` and asks for the tracking number and postal code.
 
-The configuration looks like this:
+The configuration file looks like this:
 
 json
 {
@@ -80,6 +87,8 @@ json
 }
 
 
+The included `config.example.json` can also be used as a template.
+
 ### Configuration options
 
 | Option            | Description                                                    |
@@ -91,7 +100,7 @@ json
 | `randomize`       | Randomize the polling interval between the minimum and maximum |
 | `sound_enabled`   | Enable or disable notification sounds                          |
 
-The included `config.example.json` can also be used as a template.
+For normal operation, a polling interval of approximately 60–120 seconds is recommended.
 
 ## Running
 
@@ -103,57 +112,72 @@ python -m src.main
 
 Alternatively, use the included `start.txt` as a quick reference:
 
-text
+powershell
 .\gls_tracker_venv\Scripts\Activate.ps1
 python -m src.main
 
 
-## Example
+## Monitoring
 
-A normal run looks similar to:
+The tracker combines information from two GLS endpoints into a single shipment state.
+
+### Standard tracking information
+
+The standard tracking API provides information such as:
+
+* shipment status
+* status text
+* expected delivery window
+* latest shipment event
+
+### Live tracking information
+
+When available, the live tracking API provides:
+
+* estimated arrival time
+* minimum ETA
+* maximum ETA
+* remaining delivery stops
+* courier position
+
+Some live tracking information may not always be available. For example, the courier position can be unavailable even while the shipment is out for delivery.
+
+The tracker continues monitoring the shipment if the live tracking endpoint temporarily fails.
+
+## Change Detection
+
+The tracker compares the current shipment state with the previously known state.
+
+A notification is generated when one or more of the following changes:
+
+* shipment status
+* expected delivery window
+* remaining stops
+* ETA
+* ETA window
+* courier position availability or value
+
+If several values change during the same polling cycle, they are combined into a single notification.
+
+Example:
 
 text
 ============================================================
-GLS PACKAGE TRACKER
+[12:21:00] 🔔 SHIPMENT UPDATED!
+
+Remaining stops:
+  52
+  → 50
+
+ETA:
+  15:21:32
+  → 15:25:56
+
+ETA window:
+  13:50:00 - 16:35:00
+  →
+  14:00:00 - 16:40:00
 ============================================================
-
-Tracking number:  1234567890
-Postal code:      1234
-Polling interval: 60-120 seconds (random)
-Sound:            enabled
-
-[11:37:11] ✓ No changes | Status: GLS járműben, kiszállítás alatt | Delivery: 16:00-19:00
-Next check in 60 seconds...
-
-
-When the expected delivery time changes:
-
-text
-============================================================
-[11:42:46] 🔔 SHIPMENT UPDATED!
-
-Expected delivery:
-  16:00-19:00
-  → 17:00-20:00
-============================================================
-
-
-When the shipment is delivered:
-
-text
-============================================================
-[11:42:47] 🔔 SHIPMENT UPDATED!
-
-Status:
-  GLS járműben, kiszállítás alatt
-  → Kézbesítve
-
-Expected delivery:
-  17:00-20:00
-  → None
-============================================================
-
-Package delivered. Monitoring stopped.
 
 
 ## Persistent State
@@ -166,11 +190,94 @@ data/last_state.json
 
 This allows the application to detect changes that happened while the tracker was not running.
 
-For example, if the expected delivery time changes while the application is closed, the next startup can report:
+For example, if the delivery window or ETA changes while the application is closed, the next startup can report:
 
 text
+============================================================
 SHIPMENT UPDATED SINCE LAST RUN!
+============================================================
+
+
 Runtime state is excluded from Git through `.gitignore`.
+
+## Delivery Detection
+
+When the shipment reaches a delivered state, the tracker reports the final update and stops monitoring:
+
+text
+Package delivered. Monitoring stopped.
+
+
+This prevents unnecessary API requests after delivery.
+
+## Polling
+
+The default polling interval is 60–120 seconds with randomization enabled.
+
+Example:
+
+json
+{
+    "min_polling": 60,
+    "max_polling": 120,
+    "randomize": true
+}
+
+
+With randomization enabled, each polling interval is selected randomly between the configured minimum and maximum values.
+
+For development and testing, shorter intervals can be used:
+
+json
+{
+    "min_polling": 10,
+    "max_polling": 15,
+    "randomize": true
+}
+
+
+Short polling intervals are intended for development/testing rather than normal operation.
+
+## Testing
+
+The project uses `pytest`.
+
+Run all tests with:
+
+powershell
+python -m pytest
+
+
+The test suite does not require a real GLS shipment or a live internet connection. External API responses are mocked where appropriate.
+
+Current tests cover:
+
+* successful GLS API response parsing
+* GLS API request errors
+* invalid JSON responses
+* unexpected API response formats
+* live tracking response parsing
+* ETA parsing
+* remaining stop parsing
+* courier position parsing
+* shipment state changes
+* delivery detection
+* tracker recovery after API errors
+
+Example:
+
+text
+======================================================== test session starts =========================================================
+collected 7 items
+
+tests/test_gls_client.py .
+tests/test_gls_errors.py ...
+tests/test_live_tracking.py .
+tests/test_tracker.py .
+tests/test_tracker_errors.py .
+
+========================================================= 7 passed =========================================================
+
 
 ## Project Structure
 
@@ -181,6 +288,7 @@ gls_tracker/
 │   ├── __init__.py
 │   ├── config.py
 │   ├── gls_client.py
+│   ├── live_tracking_client.py
 │   ├── main.py
 │   ├── models.py
 │   ├── notifier.py
@@ -190,131 +298,7 @@ gls_tracker/
 │   ├── __init__.py
 │   ├── test_gls_client.py
 │   ├── test_gls_errors.py
+│   ├── test_live_tracking.py
 │   ├── test_tracker.py
-│   └── test_tracker_errors.py
-├── .gitignore
-├── config.example.json
-├── README.md
-├── requirements.txt
-└── start.txt
+│   └── test_tracker_errors
 
-
-### Source modules
-
-#### `gls_client.py`
-
-Handles communication with the GLS tracking API and converts the API response into a `ShipmentState` object.
-
-#### `models.py`
-
-Contains the data model used to represent the current shipment state.
-
-#### `tracker.py`
-
-Contains the main monitoring logic:
-
-* state comparison
-* change detection
-* polling
-* persistent state handling
-* delivery detection
-* error recovery
-
-#### `config.py`
-
-Loads, creates and validates the application configuration.
-
-#### `state_store.py`
-
-Stores and loads the last known shipment state.
-
-#### `notifier.py`
-
-Displays console notifications and optionally plays a Windows sound.
-
-#### `main.py`
-
-Application entry point. It connects configuration, the GLS client and the tracker.
-
-## Testing
-
-The project includes tests for the GLS client and tracker.
-
-Run the GLS API client test:
-
-powershell
-python -m tests.test_gls_client
-
-
-Run the tracker test:
-
-powershell
-python -m tests.test_tracker
-
-
-Run the GLS error handling tests:
-
-powershell
-python -m tests.test_gls_errors
-
-
-Run the tracker error recovery test:
-
-powershell
-python -m tests.test_tracker_errors
-
-
-The tests cover:
-
-* successful GLS API requests
-* network/API errors
-* invalid JSON responses
-* unexpected API response formats
-* shipment state changes
-* delivery detection
-* tracker recovery after errors
-* persistent-state-independent tracker operation
-
-## Polling
-
-The default polling interval is 60–120 seconds with randomization enabled.
-
-Randomized polling helps avoid sending requests at exactly the same interval every time.
-
-For development and testing, shorter intervals can be configured, for example:
-
-json
-{
-    "min_polling": 10,
-    "max_polling": 15,
-    "randomize": true
-}
-
-
-For normal operation, a longer interval is recommended.
-
-## Current Limitations
-
-The tracker currently monitors the information exposed by the GLS tracking API.
-
-It does **not** provide:
-
-* driver's live GPS position
-* number of stops remaining
-* current position in the delivery queue
-* total number of deliveries before the shipment
-* exact arrival prediction beyond the delivery window provided by GLS
-
-These values are not currently exposed by the GLS tracking endpoint used by the application.
-
-## Security and Privacy
-
-`config.json` is intentionally excluded from Git.
-
-This prevents personal tracking numbers and postal codes from being committed to the repository.
-
-The example configuration contains no real shipment information.
-
-## License
-
-No license has been selected yet.
