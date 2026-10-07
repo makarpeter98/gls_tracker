@@ -1,0 +1,8 @@
+﻿{
+    "tracking_number": "",
+    "postal_code": "",
+    "min_polling": 60,
+    "max_polling": 120,
+    "randomize": true,
+    "sound_enabled": true
+}
